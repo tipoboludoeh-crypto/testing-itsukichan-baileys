@@ -36,7 +36,6 @@ class WhatsAppBot {
         console.log('╚══════════════════════════════════════════════════╝');
         console.log('👻 Modo: Silencioso (sin notificaciones)');
         console.log('   Plataforma: Ubuntu/Linux');
-        console.log('   Incluye prueba de botones Sí/No');
         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
     }
 
@@ -51,8 +50,15 @@ class WhatsAppBot {
                 markOnlineOnConnect: false,
                 syncFullHistory: false,
                 generateHighQualityLinkPreview: false,
+                
+                // ← Cambio importante para Ubuntu / Linux
                 browser: Browsers.ubuntu('Chrome'),
-                // version: [2, 3000, 1027934701], // descomentar si hay problemas de conexión
+                
+                // Opcional: si quieres simular Firefox
+                // browser: Browsers.ubuntu('Firefox'),
+                
+                // Si tienes problemas de conexión → prueba descomentar esto (versión reciente a enero 2026)
+                // version: [2, 3000, 1027934701],
             });
 
             this.setupEventHandlers(saveCreds);
@@ -66,7 +72,6 @@ class WhatsAppBot {
     setupEventHandlers(saveCreds) {
         const sock = this.sock;
 
-        // QR Code
         sock.ev.on('qr', (qr) => {
             console.clear();
             console.log('╔══════════════════════════════════════════════════╗');
@@ -74,10 +79,10 @@ class WhatsAppBot {
             console.log('╚══════════════════════════════════════════════════╝\n');
             qrcode.generate(qr, { small: true });
             console.log('\n⚠️  Tienes 60 segundos para escanear el código QR');
+            console.log('📱 También puedes usar el código de vinculación');
             console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         });
 
-        // Estado de conexión
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
 
@@ -94,7 +99,10 @@ class WhatsAppBot {
                 console.log(`🕐 Conexión: ${new Date().toLocaleString('es-ES')}`);
                 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                 console.log('🚀 Bot conectado correctamente');
+                console.log('👻 Modo silencioso activado');
                 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+                
+                console.log('📱 WhatsApp Bot listo (Ubuntu/Linux)');
             }
 
             if (connection === 'close') {
@@ -102,10 +110,13 @@ class WhatsAppBot {
                 if (statusCode === DisconnectReason.loggedOut) {
                     console.clear();
                     console.log('🔒 SESIÓN CERRADA MANUALMENTE\n');
-                    console.log('Para reconectar: borra "session/" y ejecuta npm start');
+                    console.log('Para reconectar:');
+                    console.log('1. Borra la carpeta "session/"');
+                    console.log('2. Ejecuta: npm start');
+                    console.log('3. Escanea el QR nuevamente');
                     process.exit(0);
                 } else {
-                    console.log(`\n⚠️ Desconectado (código: ${statusCode || 'desconocido'})`);
+                    console.log(`\n⚠️  Desconectado (código: ${statusCode || 'desconocido'})`);
                     console.log(`⏳ Reconectando en 15 segundos...\n`);
                     this.reconnect();
                 }
@@ -127,7 +138,7 @@ class WhatsAppBot {
                         console.log('║          📱 VINCULACIÓN SIN QR                  ║');
                         console.log('╚══════════════════════════════════════════════════╝\n');
                         console.log(`🔢 CÓDIGO: *${code}*\n`);
-                        console.log('En WhatsApp → Ajustes → Dispositivos vinculados → Vincular con código');
+                        console.log('📱 EN TU WHATSAPP → Ajustes → Dispositivos vinculados → Vincular con código');
                         console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
                     } catch (err) {
                         console.log('❌ Error generando código:', err.message);
@@ -136,7 +147,6 @@ class WhatsAppBot {
             }
         });
 
-        // Manejo de mensajes + prueba de botones
         sock.ev.on('messages.upsert', async ({ messages }) => {
             try {
                 const msg = messages[0];
@@ -144,57 +154,16 @@ class WhatsAppBot {
 
                 const messageType = Object.keys(msg.message)[0];
                 const sender = msg.key.remoteJid.split('@')[0];
-                const jid = msg.key.remoteJid;
                 const now = new Date();
-
+                
                 console.log(`\n📩 MENSAJE RECIBIDO`);
                 console.log(`👤 De: ${sender}`);
                 console.log(`🕐 ${now.toLocaleTimeString('es-ES')}`);
                 console.log(`📊 Tipo: ${messageType}`);
                 console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-
-                // ── DETECCIÓN DE RESPUESTA A BOTÓN ───────────────────────────────
-                if (messageType === 'buttonResponseMessage') {
-                    const respuesta = msg.message.buttonResponseMessage.selectedButtonId;
-                    console.log(`→ Usuario presionó botón: ${respuesta}`);
-
-                    let textoRespuesta = 'Ok recibido';
-                    if (respuesta === 'si_prueba' || respuesta.includes('si')) {
-                        textoRespuesta = '¡Perfecto! Gracias por decir SÍ 😄';
-                    } else if (respuesta === 'no_prueba' || respuesta.includes('no')) {
-                        textoRespuesta = 'Entendido... Gracias por decir NO 😌';
-                    }
-
-                    await sock.sendMessage(jid, { text: textoRespuesta }, { quoted: msg });
-                    return;
-                }
-
-                // ── ENVIAR MENSAJE CON BOTONES SÍ / NO COMO PRUEBA ───────────────
-                await sock.sendMessage(jid, {
-                    text: '¡Hola! Esta es una prueba de botones\n¿Te parece bien?',
-                    footer: 'Responde con un botón ↓',
-                    interactiveButtons: [
-                        {
-                            name: 'quick_reply',
-                            buttonParamsJson: JSON.stringify({
-                                display_text: 'Sí ✅',
-                                id: 'si_prueba'
-                            })
-                        },
-                        {
-                            name: 'quick_reply',
-                            buttonParamsJson: JSON.stringify({
-                                display_text: 'No ❌',
-                                id: 'no_prueba'
-                            })
-                        }
-                    ]
-                }, { quoted: msg });
-
-                console.log(`✅ Botones Sí/No enviados a ${sender}`);
-
+                
             } catch (error) {
-                console.log(`\n⚠️ ERROR EN MENSAJE: ${error.message}`);
+                console.log(`\n⚠️  ERROR PROCESANDO MENSAJE: ${error.message}`);
             }
         });
     }
@@ -213,7 +182,7 @@ class WhatsAppBot {
                     console.log(`✅ Número aceptado: ${cleaned}`);
                     resolve(cleaned);
                 } else {
-                    console.log('❌ Número inválido (10-15 dígitos)');
+                    console.log('❌ Número inválido. Debe tener 10-15 dígitos.');
                     resolve(null);
                 }
             });
@@ -222,25 +191,30 @@ class WhatsAppBot {
 
     reconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.log('\n❌ Límite de reconexiones alcanzado');
-            console.log('Ejecuta npm start nuevamente o borra carpeta session/');
+            console.log('\n❌ LÍMITE DE RECONEXIONES ALCANZADO');
+            console.log('🔄 Reinicia manualmente: npm start');
+            console.log('🗑️  O borra la carpeta "session/"');
             process.exit(1);
         }
         this.reconnectAttempts++;
-        console.log(`🔄 Reconexión ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+        console.log(`\n🔄 RECONEXIÓN ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
         console.log(`⏳ Esperando ${this.reconnectDelay/1000} segundos...\n`);
         setTimeout(() => this.start(), this.reconnectDelay);
     }
 }
 
-// Cierre limpio
+// Manejo de cierre limpio
 ['SIGINT', 'SIGTERM', 'SIGQUIT'].forEach(signal => {
     process.on(signal, () => {
         console.clear();
-        console.log('\n🛑 BOT DETENIDO');
-        console.log(`Señal: ${signal} | ${new Date().toLocaleString('es-ES')}`);
-        console.log('Para reiniciar → npm start');
-        console.log('Para limpiar sesión → borra carpeta "session/"\n');
+        console.log('\n╔══════════════════════════════════════════════════╗');
+        console.log('║              🛑 BOT DETENIDO                     ║');
+        console.log('╚══════════════════════════════════════════════════╝\n');
+        console.log(`🔧 Señal: ${signal}`);
+        console.log(`🕐 Hora: ${new Date().toLocaleString('es-ES')}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('📊 Para reiniciar → npm start');
+        console.log('🗑️  Para limpiar → borra carpeta "session/"\n');
         process.exit(0);
     });
 });
